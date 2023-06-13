@@ -178,18 +178,20 @@ class LeafNode extends BPlusNode {
         }
 
         // Better migration: save space
-        List<DataBox> newKeys = new ArrayList<>(Arrays.asList(new DataBox[order + 1]));
-        List<RecordId> newRids = new ArrayList<>(Arrays.asList(new RecordId[order + 1]));
+        DataBox[] newKeys = new DataBox[order + 1];
+        RecordId[] newRids = new RecordId[order + 1];
+//        List<DataBox> newKeys = new ArrayList<>(Arrays.asList(new DataBox[order + 1]));
+//        List<RecordId> newRids = new ArrayList<>(Arrays.asList(new RecordId[order + 1]));
 
         for (int i = order; i >= 0; i -= 1) {
-            newKeys.set(i, keys.remove(keys.size() - 1));
-            newRids.set(i, rids.remove(rids.size() - 1));
+            newKeys[i] = keys.remove(keys.size() - 1);
+            newRids[i] = rids.remove(rids.size() - 1);
         }
 
-        LeafNode newLeaf = new LeafNode(metadata, bufferManager, newKeys, newRids, rightSibling, treeContext);
+        LeafNode newLeaf = new LeafNode(metadata, bufferManager, Arrays.asList(newKeys), Arrays.asList(newRids), rightSibling, treeContext);
         this.rightSibling = Optional.of(newLeaf.getPage().getPageNum());
         sync();
-        return Optional.of(new Pair<>(newKeys.get(0), rightSibling.get()));
+        return Optional.of(new Pair<>(newKeys[0], rightSibling.get()));
     }
 
     // See BPlusNode.bulkLoad.
