@@ -9,9 +9,7 @@ import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
 
-import javax.swing.text.html.Option;
-import javax.xml.crypto.Data;
-import java.lang.reflect.Array;
+
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -149,7 +147,7 @@ class LeafNode extends BPlusNode {
     // See BPlusNode.get.
     @Override
     public LeafNode get(DataBox key) {
-        // TODO(proj2): Done
+        // TODO(proj2): Done.
         return this;
     }
 
@@ -165,13 +163,13 @@ class LeafNode extends BPlusNode {
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): Done
         if (keys.contains(key)) {
-            throw new BPlusTreeException("Nope.");
+            throw new BPlusTreeException("Duplicate keys are not supported.");
         }
 
-
-        keys.add(key); // sort this
-        Collections.sort(keys);
-        rids.add(keys.indexOf(key), rid);
+        // Better insertion O(n)
+        int insertIndex =  - Collections.binarySearch(keys, key) - 1;
+        keys.add(insertIndex, key);
+        rids.add(insertIndex, rid);
 
         int order = metadata.getOrder();
         if (keys.size() <= 2 * order) {
@@ -179,22 +177,14 @@ class LeafNode extends BPlusNode {
             return Optional.empty();
         }
 
-        // Sacrifice space and improve runtime
-        List<DataBox> newKeys = new ArrayList<>();
-        List<DataBox> modifiedKeys = new ArrayList<>();
-        List<RecordId> newRids = new ArrayList<>();
-        List<RecordId> modifiedRids = new ArrayList<>();
-        for (int i = 0; i < order; i += 1) {
-            modifiedKeys.add(keys.get(i));
-            newKeys.add(keys.get(order + i));
+        // Better migration: save space
+        List<DataBox> newKeys = new ArrayList<>(Arrays.asList(new DataBox[order + 1]));
+        List<RecordId> newRids = new ArrayList<>(Arrays.asList(new RecordId[order + 1]));
 
-            modifiedRids.add(rids.get(i));
-            newRids.add(rids.get(order + i));
+        for (int i = order; i >= 0; i -= 1) {
+            newKeys.set(i, keys.remove(keys.size() - 1));
+            newRids.set(i, rids.remove(rids.size() - 1));
         }
-        newKeys.add(keys.get(2 * order));
-        newRids.add(rids.get(2 * order));
-        keys = modifiedKeys;
-        rids = modifiedRids;
 
         LeafNode newLeaf = new LeafNode(metadata, bufferManager, newKeys, newRids, rightSibling, treeContext);
         this.rightSibling = Optional.of(newLeaf.getPage().getPageNum());
