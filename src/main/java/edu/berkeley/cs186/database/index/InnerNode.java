@@ -106,51 +106,14 @@ class InnerNode extends BPlusNode {
 
         Optional<Pair<DataBox, Long>> returnFromPut = readNode.put(key, rid);
         if(!returnFromPut.isPresent()) {
-            sync();
             return Optional.empty();
         }
 
         DataBox movedKey = returnFromPut.get().getFirst();
         Long ptr = returnFromPut.get().getSecond();
 
-        if (keys.contains(movedKey)) {
-            sync();
-            return Optional.empty();
-        }
+        return splitHelper(movedKey, ptr);
 
-        keys.add(movedKey);
-        Collections.sort(keys);
-        children.add(keys.indexOf(movedKey) + 1, ptr);
-
-        int order = metadata.getOrder();
-        if (keys.size() <= 2 * order) {
-            sync();
-            return Optional.empty();
-        }
-
-        List<DataBox> newKeys = new ArrayList<>();
-        List<DataBox> modifiedKeys = new ArrayList<>();
-        List<Long> newChildren = new ArrayList<>();
-        List<Long> modifiedChildren = new ArrayList<>();
-        for (int i = 0; i < order; i += 1) {
-            newKeys.add(keys.get(order + i + 1));
-            modifiedKeys.add(keys.get(i));
-
-            newChildren.add(children.get(order + i + 1));
-            modifiedChildren.add(children.get(i));
-        }
-
-        modifiedChildren.add(children.get(order));
-        newChildren.add(children.get(2 * order + 1));
-        DataBox movingKey = keys.get(order);
-        keys = modifiedKeys;
-        children = modifiedChildren;
-
-        InnerNode newNode = new InnerNode(metadata, bufferManager, newKeys, newChildren, treeContext);
-        Long movingPageNum = newNode.getPage().getPageNum();
-        sync();
-
-        return Optional.of(new Pair<>(movingKey, movingPageNum));
     }
 
     // See BPlusNode.bulkLoad.
@@ -163,21 +126,26 @@ class InnerNode extends BPlusNode {
         Optional<Pair<DataBox, Long>> resultFromBulkLoad = readNode.bulkLoad(data, fillFactor);
 
         if(!resultFromBulkLoad.isPresent()) {
-            sync();
             return Optional.empty();
         }
 
         DataBox movedKey = resultFromBulkLoad.get().getFirst();
         Long ptr = resultFromBulkLoad.get().getSecond();
 
+        return splitHelper(movedKey, ptr);
+    }
+
+    // This helper is used in both put and bulkLoad because the InnerNodes are filled until
+    // full.
+    private Optional<Pair<DataBox, Long>> splitHelper(DataBox movedKey, Long ptr)
+    {
         if (keys.contains(movedKey)) {
-            sync();
             return Optional.empty();
         }
 
-        keys.add(movedKey);
-        Collections.sort(keys);
-        children.add(keys.indexOf(movedKey) + 1, ptr);
+        int insertIndex = - Collections.binarySearch(keys, movedKey) - 1;
+        keys.add(insertIndex, movedKey);
+        children.add(insertIndex + 1, ptr);
 
         int order = metadata.getOrder();
         if (keys.size() <= 2 * order) {
@@ -185,29 +153,26 @@ class InnerNode extends BPlusNode {
             return Optional.empty();
         }
 
-        List<DataBox> newKeys = new ArrayList<>();
-        List<DataBox> modifiedKeys = new ArrayList<>();
-        List<Long> newChildren = new ArrayList<>();
-        List<Long> modifiedChildren = new ArrayList<>();
-        for (int i = 0; i < order; i += 1) {
-            newKeys.add(keys.get(order + i + 1));
-            modifiedKeys.add(keys.get(i));
+        // Better migration: save space
+        DataBox[] newKeys = new DataBox[order];
+        Long[] newChildren = new Long[order + 1];
 
-            newChildren.add(children.get(order + i + 1));
-            modifiedChildren.add(children.get(i));
+        for (int i = order; i > 0; i -= 1) {
+            newKeys[i - 1] = keys.remove(keys.size() - 1);
+            newChildren[i] = children.remove(children.size() - 1);
         }
 
-        modifiedChildren.add(children.get(order));
-        newChildren.add(children.get(2 * order + 1));
-        DataBox movingKey = keys.get(order);
-        keys = modifiedKeys;
-        children = modifiedChildren;
+        // extra children here
+        newChildren[0] = children.remove(children.size() - 1);
 
-        InnerNode newNode = new InnerNode(metadata, bufferManager, newKeys, newChildren, treeContext);
+        DataBox movingKey = keys.remove(keys.size() - 1);
+
+        InnerNode newNode = new InnerNode(metadata, bufferManager, Arrays.asList(newKeys), Arrays.asList(newChildren), treeContext);
         Long movingPageNum = newNode.getPage().getPageNum();
         sync();
 
         return Optional.of(new Pair<>(movingKey, movingPageNum));
+
     }
 
     // See BPlusNode.remove.

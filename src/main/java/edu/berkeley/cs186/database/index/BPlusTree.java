@@ -269,13 +269,13 @@ public class BPlusTree {
 
         ArrayList<DataBox> keys = new ArrayList<>();
         keys.add(resultFromPut.get().getFirst());
+
         ArrayList<Long> children = new ArrayList<>();
         children.add(root.getPage().getPageNum());
         children.add(resultFromPut.get().getSecond());
+
         BPlusNode newRoot = new InnerNode(metadata, bufferManager, keys, children, lockContext);
         updateRoot(newRoot);
-
-
         return;
     }
 
@@ -306,13 +306,13 @@ public class BPlusTree {
         // the tree's root if the old root splits.
 
 
-        // Not Inner? throw
+        // Inner or Non Empty Leaf? throw
         if (root instanceof InnerNode) {
-            throw new BPlusTreeException("Nope.");
+            throw new BPlusTreeException("The B+ Tree is not empty!");
         }
 
         if ((root instanceof LeafNode) && (((LeafNode) root).getKeys().size() != 0)) {
-            throw new BPlusTreeException("Nope.");
+            throw new BPlusTreeException("The B+ Tree is not empty!");
         }
 
         bulkLoadHelper(data, fillFactor);
@@ -329,6 +329,7 @@ public class BPlusTree {
             BPlusNode newRoot = new InnerNode(metadata, bufferManager, keys, children, lockContext);
             updateRoot(newRoot);
         }
+
         if (!data.hasNext()) {
             return;
         }
@@ -354,9 +355,6 @@ public class BPlusTree {
 
         // TODO(proj2): implement
         root.remove(key);
-
-
-        return;
     }
 
     // Helpers /////////////////////////////////////////////////////////////////
@@ -486,7 +484,6 @@ public class BPlusTree {
                     break;
                 }
             }
-
         }
 
         @Override
@@ -506,7 +503,6 @@ public class BPlusTree {
                 throw new NoSuchElementException();
 
             if (currentLeaf.getKeys().size() > currentKeyPosInLeaf) {
-
                 return currentLeaf.getRids().get(currentKeyPosInLeaf++);
             }
 

@@ -180,8 +180,6 @@ class LeafNode extends BPlusNode {
         // Better migration: save space
         DataBox[] newKeys = new DataBox[order + 1];
         RecordId[] newRids = new RecordId[order + 1];
-//        List<DataBox> newKeys = new ArrayList<>(Arrays.asList(new DataBox[order + 1]));
-//        List<RecordId> newRids = new ArrayList<>(Arrays.asList(new RecordId[order + 1]));
 
         for (int i = order; i >= 0; i -= 1) {
             newKeys[i] = keys.remove(keys.size() - 1);
@@ -191,32 +189,28 @@ class LeafNode extends BPlusNode {
         LeafNode newLeaf = new LeafNode(metadata, bufferManager, Arrays.asList(newKeys), Arrays.asList(newRids), rightSibling, treeContext);
         this.rightSibling = Optional.of(newLeaf.getPage().getPageNum());
         sync();
-        return Optional.of(new Pair<>(newKeys[0], rightSibling.get()));
+        return Optional.of(new Pair<>(newLeaf.getKeys().get(0), rightSibling.get()));
     }
 
     // See BPlusNode.bulkLoad.
     @Override
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
             float fillFactor) {
-        // TODO(proj2): implement
+        // TODO(proj2): Done
 
-        while(keys.size() < fillFactor * 2 * metadata.getOrder()) {
-            if(data.hasNext()) {
-                Pair<DataBox, RecordId> next = data.next();
-                keys.add(next.getFirst());
-                rids.add(next.getSecond());
-            } else {
-                break;
-            }
+        while(keys.size() < fillFactor * 2 * metadata.getOrder() && data.hasNext()) {
+
+            Pair<DataBox, RecordId> next = data.next();
+            keys.add(next.getFirst());
+            rids.add(next.getSecond());
         }
 
-
-        if(!data.hasNext()) {
+        if (!data.hasNext()) {
             sync();
             return Optional.empty();
         }
 
-        // Extra One.
+        // Leaf Split.
         Pair<DataBox, RecordId> next = data.next();
         List<DataBox> newLeafKeys = new ArrayList<>();
         List<RecordId> newLeafRids = new ArrayList<>();
@@ -232,16 +226,13 @@ class LeafNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-        for(int i = 0; i < keys.size(); i += 1) {
-            if (keys.get(i).equals(key)) {
-                keys.remove(i);
-                rids.remove(i);
-                sync();
-                return;
-            }
-        }
 
-        return;
+        int delIndex = Collections.binarySearch(keys, key);
+        if (delIndex < 0) return;
+
+        keys.remove(delIndex);
+        rids.remove(delIndex);
+        sync();
     }
 
     // Iterators ///////////////////////////////////////////////////////////////
