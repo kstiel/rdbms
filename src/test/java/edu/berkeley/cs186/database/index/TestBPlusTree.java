@@ -147,6 +147,7 @@ public class TestBPlusTree {
         assertEquals(sexp, tree.toSexp());
     }
 
+<<<<<<< HEAD
     @Test(expected = BPlusTreeException.class)
     @Category(PublicTests.class)
     public void testBulkLoadInitialNonEmptyTree() {
@@ -216,6 +217,8 @@ public class TestBPlusTree {
         assertEquals(sexp, tree.toSexp());
     }
 
+=======
+>>>>>>> dd149d7
     @Test
     @Category(PublicTests.class)
     public void testWhiteBoxTest() {
@@ -249,7 +252,10 @@ public class TestBPlusTree {
         r = "((6 (6 6)) (9 (9 9)))";
         assertEquals(String.format("(%s 6 %s)", l, r), tree.toSexp());
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> dd149d7
         //      (6 7)
         //     /  |  \
         // (2 4) (6) (7 9)
@@ -491,7 +497,11 @@ public class TestBPlusTree {
         List<DataBox> keys = new ArrayList<>();
         List<RecordId> rids = new ArrayList<>();
         List<RecordId> sortedRids = new ArrayList<>();
+<<<<<<< HEAD
         for (int i = 0; i < 2000; ++i) {
+=======
+        for (int i = 0; i < 1000; ++i) {
+>>>>>>> dd149d7
             keys.add(new IntDataBox(i));
             rids.add(new RecordId(i, (short) i));
             sortedRids.add(new RecordId(i, (short) i));
@@ -518,7 +528,10 @@ public class TestBPlusTree {
                 // Test scanAll.
                 assertEquals(sortedRids, indexIteratorToList(tree::scanAll));
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> dd149d7
                 // Test scanGreaterEqual.
                 for (int i = 0; i < keys.size(); i += 100) {
                     final int j = i;

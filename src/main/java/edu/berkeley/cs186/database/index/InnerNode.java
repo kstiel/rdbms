@@ -80,40 +80,26 @@ class InnerNode extends BPlusNode {
     // See BPlusNode.get.
     @Override
     public LeafNode get(DataBox key) {
-        // TODO(proj2): Done
-        Long pageNum = children.get(numLessThanEqual(key, keys));
-        BPlusNode readNode = BPlusNode.fromBytes(metadata, bufferManager, treeContext, pageNum);
-        return readNode.get(key);
+        // TODO(proj2): implement
+
+        return null;
     }
 
     // See BPlusNode.getLeftmostLeaf.
     @Override
     public LeafNode getLeftmostLeaf() {
         assert(children.size() > 0);
-        // TODO(proj2): Done
-        Long pageNum = children.get(0);
-        BPlusNode readNode = BPlusNode.fromBytes(metadata, bufferManager, treeContext, pageNum);
-        return readNode.getLeftmostLeaf();
+        // TODO(proj2): implement
+
+        return null;
     }
 
     // See BPlusNode.put.
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
-        // TODO(proj2): Done
+        // TODO(proj2): implement
 
-        Long pageNum = children.get(numLessThanEqual(key, keys));
-        BPlusNode readNode = BPlusNode.fromBytes(metadata, bufferManager, treeContext, pageNum);
-
-        Optional<Pair<DataBox, Long>> returnFromPut = readNode.put(key, rid);
-        if(!returnFromPut.isPresent()) {
-            return Optional.empty();
-        }
-
-        DataBox movedKey = returnFromPut.get().getFirst();
-        Long ptr = returnFromPut.get().getSecond();
-
-        return splitHelper(movedKey, ptr);
-
+        return Optional.empty();
     }
 
     // See BPlusNode.bulkLoad.
@@ -122,66 +108,15 @@ class InnerNode extends BPlusNode {
             float fillFactor) {
         // TODO(proj2): implement
 
-        BPlusNode readNode = BPlusNode.fromBytes(metadata, bufferManager, treeContext, children.get(children.size() - 1));
-        Optional<Pair<DataBox, Long>> resultFromBulkLoad = readNode.bulkLoad(data, fillFactor);
-
-        if(!resultFromBulkLoad.isPresent()) {
-            return Optional.empty();
-        }
-
-        DataBox movedKey = resultFromBulkLoad.get().getFirst();
-        Long ptr = resultFromBulkLoad.get().getSecond();
-
-        return splitHelper(movedKey, ptr);
-    }
-
-    // This helper is used in both put and bulkLoad because the InnerNodes are filled until
-    // full.
-    private Optional<Pair<DataBox, Long>> splitHelper(DataBox movedKey, Long ptr)
-    {
-        if (keys.contains(movedKey)) {
-            return Optional.empty();
-        }
-
-        int insertIndex = - Collections.binarySearch(keys, movedKey) - 1;
-        keys.add(insertIndex, movedKey);
-        children.add(insertIndex + 1, ptr);
-
-        int order = metadata.getOrder();
-        if (keys.size() <= 2 * order) {
-            sync();
-            return Optional.empty();
-        }
-
-        // Better migration: save space
-        DataBox[] newKeys = new DataBox[order];
-        Long[] newChildren = new Long[order + 1];
-
-        for (int i = order; i > 0; i -= 1) {
-            newKeys[i - 1] = keys.remove(keys.size() - 1);
-            newChildren[i] = children.remove(children.size() - 1);
-        }
-
-        // extra children here
-        newChildren[0] = children.remove(children.size() - 1);
-
-        DataBox movingKey = keys.remove(keys.size() - 1);
-
-        InnerNode newNode = new InnerNode(metadata, bufferManager, Arrays.asList(newKeys), Arrays.asList(newChildren), treeContext);
-        Long movingPageNum = newNode.getPage().getPageNum();
-        sync();
-
-        return Optional.of(new Pair<>(movingKey, movingPageNum));
-
+        return Optional.empty();
     }
 
     // See BPlusNode.remove.
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-        Long pageNum = children.get(numLessThanEqual(key, keys));
-        BPlusNode readNode = BPlusNode.fromBytes(metadata, bufferManager, treeContext, pageNum);
-        readNode.remove(key);
+
+        return;
     }
 
     // Helpers /////////////////////////////////////////////////////////////////

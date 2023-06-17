@@ -53,7 +53,7 @@ public class Type {
             String msg = "Empty strings are not supported.";
             throw new IllegalArgumentException(msg);
         }
-            return new Type(TypeId.STRING, n);
+        return new Type(TypeId.STRING, n);
     }
 
     public static Type longType() {
