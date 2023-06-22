@@ -9,7 +9,9 @@ import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
 
+import javax.xml.crypto.Data;
 import java.nio.ByteBuffer;
+import java.text.BreakIterator;
 import java.util.*;
 
 /**
@@ -80,9 +82,13 @@ class InnerNode extends BPlusNode {
     // See BPlusNode.get.
     @Override
     public LeafNode get(DataBox key) {
-        // TODO(proj2): implement
 
-        return null;
+        // TODO(proj2): implement
+        int i = numLessThanEqual(key,keys);
+        BPlusNode current = getChild(i);
+
+        // retrieve current node data
+        return current.get(key);
     }
 
     // See BPlusNode.getLeftmostLeaf.
@@ -90,16 +96,62 @@ class InnerNode extends BPlusNode {
     public LeafNode getLeftmostLeaf() {
         assert(children.size() > 0);
         // TODO(proj2): implement
+        BPlusNode current;
+        do {
+             current = this.getChild(0);
+        } while (current.getPage().getBuffer().get() == 0 );
 
-        return null;
+        return (LeafNode) current;
     }
 
     // See BPlusNode.put.
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
+        if(keys.contains(key)){
+            throw new BPlusTreeException("Duplicated Key!");
+        }
+        Long pgNum = children.get(numLessThanEqual(key, this.getKeys()));
+        BPlusNode current = BPlusNode.fromBytes(metadata,bufferManager,treeContext,pgNum);
+
+        Optional<Pair<DataBox, Long>> tmp = current.put(key, rid);
+        if (tmp.isPresent()) {
+            // non split
+            DataBox lowKey = tmp.get().getFirst();
+            Long lowChild = tmp.get().getSecond();
+            int rank = this.metadata.getOrder();
+            int idx = numLessThan(lowKey,keys);
+            this.getKeys().add(idx, lowKey);
+            this.getChildren().add(idx+1, lowChild);
+
+            // non-split
+            if ( this.getKeys().size() <= 2*rank) {
+                this.sync();
+                return Optional.empty();
+            }
+
+            //split
+            List<DataBox> rightKeys = new ArrayList<>();
+            List<Long> rightChildren = new ArrayList<>();
+            for (int i = 0; i <= rank; i++ ){
+                DataBox k = keys.remove(rank);
+                Long c = children.remove(rank);
+                rightKeys.add(i,k);
+                rightChildren.add(i,c);
+            }
+
+            DataBox splitKey = rightKeys.remove(0);
+            Long splitChild = rightChildren.remove(0);
+            Long c = children.remove(rank);
+            rightChildren.add(c);
+
+            return Optional.of(new Pair<>(splitKey,splitChild));
+
+
+        }
 
         return Optional.empty();
+
     }
 
     // See BPlusNode.bulkLoad.

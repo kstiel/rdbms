@@ -147,24 +147,53 @@ class LeafNode extends BPlusNode {
     @Override
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
-
-        return null;
+        return this;
     }
 
     // See BPlusNode.getLeftmostLeaf.
     @Override
     public LeafNode getLeftmostLeaf() {
         // TODO(proj2): implement
+        return this;
 
-        return null;
+//        return null;
     }
 
     // See BPlusNode.put.
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
+        if(keys.contains(key)){
+            throw new BPlusTreeException("Duplicated Key!");
+        }
+        int rank = this.metadata.getOrder();
+        int idx = - Collections.binarySearch(this.getKeys(), key) - 1;
 
-        return Optional.empty();
+        this.getKeys().add(idx, key);
+        this.getRids().add(idx, rid);
+
+        if (this.getKeys().size() <= 2*rank) {
+            // non split
+            this.sync();
+            return Optional.empty();
+        }
+
+//        split
+        DataBox splitKey = this.getKeys().get(this.getKeys().size()/2);
+        List<DataBox> rightKeys = new ArrayList<>();
+        List<RecordId> rightRids = new ArrayList<>();
+
+        for ( int j = 0; j <= rank; j++ ) {
+            DataBox k = keys.remove(rank);
+            RecordId r = rids.remove(rank);
+            rightKeys.add(k);
+            rightRids.add(r);
+        }
+        LeafNode rightNode = new LeafNode(metadata,bufferManager,rightKeys,rightRids,this.rightSibling,treeContext);
+        this.rightSibling = Optional.of(rightNode.getPage().getPageNum());
+        this.sync();
+
+        return Optional.of(new Pair<>(splitKey, rightSibling.get()));
     }
 
     // See BPlusNode.bulkLoad.
@@ -376,8 +405,29 @@ class LeafNode extends BPlusNode {
         // Note: LeafNode has two constructors. To implement fromBytes be sure to
         // use the constructor that reuses an existing page instead of fetching a
         // brand new one.
+        Page page = bufferManager.fetchPage(treeContext, pageNum);
+        Buffer buf = page.getBuffer();
 
-        return null;
+        byte nodeType = buf.get();
+        assert(nodeType == (byte) 1);
+
+        List<DataBox> keys = new ArrayList<>();
+        List<RecordId> rids = new ArrayList<>();
+//        Long rightSibType = buf.getLong();
+//        Optional<Long> rightSibling = Optional.empty();
+//        if (rightSibType != (long) -1) {
+//            rightSibling = Optional.of(rightSibType);
+//        }
+        Optional<Long> rightSibling = Optional.of(buf.getLong());
+        int n = buf.getInt();
+
+
+        for (int i = 0; i < n; ++i) {
+            keys.add(DataBox.fromBytes(buf, metadata.getKeySchema()));
+            rids.add(RecordId.fromBytes(buf));
+        }
+        return new LeafNode(metadata, bufferManager, page,  keys, rids, rightSibling, treeContext);
+
     }
 
     // Builtins ////////////////////////////////////////////////////////////////
