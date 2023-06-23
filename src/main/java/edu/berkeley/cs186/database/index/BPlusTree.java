@@ -11,6 +11,7 @@ import edu.berkeley.cs186.database.io.DiskSpaceManager;
 import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.table.RecordId;
 
+import javax.xml.crypto.Data;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -206,8 +207,12 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): Return a BPlusTreeIterator.
-
-        return Collections.emptyIterator();
+        LeafNode firstNode = root.getLeftmostLeaf();
+        Iterator<RecordId> iter = new BPlusTreeIterator(firstNode);
+        if (firstNode.getRids().size() == 0 && !firstNode.getRightSibling().isPresent() ){
+            return Collections.emptyIterator();
+        }
+        return iter;
     }
 
     /**
@@ -239,9 +244,11 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): Return a BPlusTreeIterator.
-
-        return Collections.emptyIterator();
+        LeafNode firstNode = root.get(key);
+        Iterator<RecordId> iter = new BPlusTreeIterator(firstNode, key);
+        return iter;
     }
+
 
     /**
      * Inserts a (key, rid) pair into a B+ tree. If the key already exists in
@@ -297,6 +304,20 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): implement
+
+
+        while (data.hasNext()) {
+            Optional<Pair<DataBox,Long>> tmp = root.bulkLoad(data, fillFactor);
+            if (tmp.isPresent()) {
+                // split => root update
+                List<DataBox> newKeys = new ArrayList<>();
+                List<Long> newChildren = new ArrayList<>();
+                newKeys.add(tmp.get().getFirst());
+                newChildren.add(root.getPage().getPageNum());
+                newChildren.add(tmp.get().getSecond());
+                updateRoot(new InnerNode(metadata, bufferManager, newKeys, newChildren, lockContext));
+            }
+        }
         // Note: You should NOT update the root variable directly.
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
@@ -321,8 +342,7 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): implement
-
-        return;
+        root.remove(key);
     }
 
     // Helpers /////////////////////////////////////////////////////////////////
@@ -436,18 +456,42 @@ public class BPlusTree {
     private class BPlusTreeIterator implements Iterator<RecordId> {
         // TODO(proj2): Add whatever fields and constructors you want here.
 
+        private LeafNode current;
+        private int idx;
+        BPlusTreeIterator(LeafNode current) {
+            this.current = current;
+            idx = 0;
+        }
+
+        BPlusTreeIterator(LeafNode current, DataBox key) {
+            this.current = current;
+            idx = current.getKeys().indexOf(key);
+            if (idx < 0 ){
+                idx = 0;
+                while (current.getKeys().get(idx).compareTo(key) <0 ) {
+                    idx++;
+                }
+            }
+        }
+
         @Override
         public boolean hasNext() {
             // TODO(proj2): implement
-
-            return false;
+            return current.getRightSibling().isPresent() || idx < current.getRids().size();
         }
 
         @Override
         public RecordId next() {
             // TODO(proj2): implement
-
-            throw new NoSuchElementException();
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            if ( idx == current.getRids().size() ){
+                current = current.getRightSibling().get();
+                assert current.getRids().size() > 0;
+                idx = 0;
+            }
+            return current.getRids().get(idx++);
         }
     }
 }

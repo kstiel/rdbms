@@ -201,16 +201,38 @@ class LeafNode extends BPlusNode {
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
             float fillFactor) {
         // TODO(proj2): implement
-
-        return Optional.empty();
+        int rank = metadata.getOrder();
+        int limit = (int) Math.round(2*rank*fillFactor);
+        Pair<DataBox,RecordId> tmp;
+        while ( data.hasNext() && keys.size() < limit ) {
+            tmp = data.next();
+            keys.add(tmp.getFirst());
+            rids.add(tmp.getSecond());
+        }
+        sync();
+        if ( !data.hasNext() ) {
+            return Optional.empty();
+        }
+        tmp = data.next();
+        List<DataBox> rightKeys = new ArrayList<>();
+        List<RecordId> rightRids = new ArrayList<>();
+        rightKeys.add(tmp.getFirst());
+        rightRids.add(tmp.getSecond());
+        LeafNode newLeaf = new LeafNode(metadata, bufferManager, rightKeys, rightRids, rightSibling, treeContext);
+        this.rightSibling = Optional.of(newLeaf.getPage().getPageNum());
+        return Optional.of(new Pair<DataBox, Long>(tmp.getFirst(), rightSibling.get()));
     }
 
     // See BPlusNode.remove.
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-
-        return;
+        if (keys.contains(key)){
+            int idx = keys.indexOf(key);
+            keys.remove(idx);
+            rids.remove(idx);
+            sync();
+        }
     }
 
     // Iterators ///////////////////////////////////////////////////////////////
@@ -413,12 +435,12 @@ class LeafNode extends BPlusNode {
 
         List<DataBox> keys = new ArrayList<>();
         List<RecordId> rids = new ArrayList<>();
-//        Long rightSibType = buf.getLong();
-//        Optional<Long> rightSibling = Optional.empty();
-//        if (rightSibType != (long) -1) {
-//            rightSibling = Optional.of(rightSibType);
-//        }
-        Optional<Long> rightSibling = Optional.of(buf.getLong());
+        Long rightSibType = buf.getLong();
+        Optional<Long> rightSibling = Optional.empty();
+        if (rightSibType != (long) -1) {
+            rightSibling = Optional.of(rightSibType);
+        }
+//        Optional<Long> rightSibling = Optional.of(buf.getLong());
         int n = buf.getInt();
 
 
