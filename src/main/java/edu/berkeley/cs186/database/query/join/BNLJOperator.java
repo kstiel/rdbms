@@ -86,7 +86,12 @@ public class BNLJOperator extends JoinOperator {
          * You may find QueryOperator#getBlockIterator useful here.
          */
         private void fetchNextLeftBlock() {
-            // TODO(proj3_part1): implement
+            // TODO(proj3_part1): Done
+            leftBlockIterator = getBlockIterator(this.leftSourceIterator, getLeftSource().getSchema(), numBuffers - 2);
+            if (leftBlockIterator.hasNext()) {
+                leftBlockIterator.markNext();
+                this.leftRecord = leftBlockIterator.next();
+            }
         }
 
         /**
@@ -100,7 +105,9 @@ public class BNLJOperator extends JoinOperator {
          * You may find QueryOperator#getBlockIterator useful here.
          */
         private void fetchNextRightPage() {
-            // TODO(proj3_part1): implement
+            // TODO(proj3_part1): Done
+            rightPageIterator = getBlockIterator(this.rightSourceIterator, getRightSource().getSchema(), 1);
+            rightPageIterator.markNext();
         }
 
         /**
@@ -112,8 +119,29 @@ public class BNLJOperator extends JoinOperator {
          * of JoinOperator).
          */
         private Record fetchNextRecord() {
-            // TODO(proj3_part1): implement
-            return null;
+            // TODO(proj3_part1): Done
+
+            while (true) {
+                if (rightPageIterator.hasNext()) {
+                    Record rightRecord = rightPageIterator.next();
+                    if (compare(leftRecord, rightRecord) == 0) {
+                        return leftRecord.concat(rightRecord);
+                    }
+                } else if (leftBlockIterator.hasNext()) {
+                    rightPageIterator.reset();
+                    leftRecord = leftBlockIterator.next();
+                } else if (rightSourceIterator.hasNext()) {
+                    leftBlockIterator.reset();
+                    leftRecord = leftBlockIterator.next();
+                    this.fetchNextRightPage();
+                } else if (leftSourceIterator.hasNext()) {
+                    this.fetchNextLeftBlock();
+                    rightSourceIterator.reset();
+                    this.fetchNextRightPage();
+                } else {
+                    return null;
+                }
+            }
         }
 
         /**

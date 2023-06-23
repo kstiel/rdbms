@@ -488,7 +488,7 @@ public class BPlusTree {
 
         @Override
         public boolean hasNext() {
-            // TODO(proj2): implement
+            // TODO(proj2): Done
             if (currentLeaf.getKeys().size() <= currentKeyPosInLeaf
                     && !currentLeaf.getRightSibling().isPresent())
                 return false;
@@ -498,7 +498,7 @@ public class BPlusTree {
 
         @Override
         public RecordId next() {
-            // TODO(proj2): implement
+            // TODO(proj2): Done
             if (!hasNext())
                 throw new NoSuchElementException();
 

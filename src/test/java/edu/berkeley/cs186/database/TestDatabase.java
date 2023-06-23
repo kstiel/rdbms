@@ -7,6 +7,7 @@ import edu.berkeley.cs186.database.databox.DataBox;
 import edu.berkeley.cs186.database.databox.IntDataBox;
 import edu.berkeley.cs186.database.databox.StringDataBox;
 import edu.berkeley.cs186.database.databox.Type;
+import edu.berkeley.cs186.database.query.QueryOperator;
 import edu.berkeley.cs186.database.query.QueryPlan;
 import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.RecordId;
@@ -196,6 +197,44 @@ public class TestDatabase {
             queryPlan.project("t1.id", "t2.id", "t1.firstName", "t2.firstName", "t1.lastName");
             // run the query
             Iterator<Record> iter = queryPlan.execute();
+
+            assertEquals(new Record(1, 2, "Jane", "John", "Doe"), iter.next());
+
+            assertFalse(iter.hasNext());
+
+            t2.commit();
+        }
+    }
+
+    @Test
+    public void testDummyJoin() {
+        try (Transaction t1 = db.beginTransaction()) {
+            Schema s = new Schema()
+                    .add("id", Type.intType())
+                    .add("firstName", Type.stringType(10))
+                    .add("lastName", Type.stringType(10));
+            t1.createTable(s, "table1");
+            t1.insert("table1", 1, "Jane", "Doe");
+            t1.insert("table1", 2, "John", "Doe");
+            t1.commit();
+        }
+
+        try (Transaction t2 = db.beginTransaction()) {
+            // FROM table1 AS t1
+            QueryPlan queryPlan = t2.query("table1", "t1");
+            // JOIN table1 AS t2 ON t1.lastName = t2.lastName
+            queryPlan.join("table1", "t2", "t1.lastName", "t2.lastName");
+            // WHERE t1.firstName = 'Jane'
+            queryPlan.select("t1.firstName", PredicateOperator.EQUALS, "Jane");
+            // .. AND t2.firstName = 'John'
+            queryPlan.select("t2.firstName", PredicateOperator.EQUALS, "John");
+            // SELECT t1.id, t2.id, t1.firstName, t2.firstName, t1.lastName
+            queryPlan.project("t1.id", "t2.id", "t1.firstName", "t2.firstName", "t1.lastName");
+            // run the query
+            Iterator<Record> iter = queryPlan.execute();
+            QueryOperator finalOperator = queryPlan.getFinalOperator();
+            System.out.println(finalOperator.toString());
+
 
             assertEquals(new Record(1, 2, "Jane", "John", "Doe"), iter.next());
 
