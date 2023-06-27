@@ -487,7 +487,9 @@ public class BPlusTree {
                 throw new NoSuchElementException();
             }
             if ( idx == current.getRids().size() ){
-                current = current.getRightSibling().get();
+                do {
+                    current = current.getRightSibling().get();
+                }while( current.getKeys().size() == 0);
                 assert current.getRids().size() > 0;
                 idx = 0;
             }
