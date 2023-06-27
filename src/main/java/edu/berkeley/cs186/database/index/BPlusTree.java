@@ -502,16 +502,19 @@ public class BPlusTree {
             if (!hasNext())
                 throw new NoSuchElementException();
 
-            if (currentLeaf.getKeys().size() > currentKeyPosInLeaf) {
-                return currentLeaf.getRids().get(currentKeyPosInLeaf++);
-            }
-
-            currentKeyPosInLeaf = 0;
-            currentLeaf = currentLeaf.getRightSibling().get();
-
-            while(currentLeaf.getKeys().size() == 0) {
+            if (currentLeaf.getKeys().size() <= currentKeyPosInLeaf) {
+                currentKeyPosInLeaf = 0;
                 currentLeaf = currentLeaf.getRightSibling().get();
+
+                while(currentLeaf.getKeys().size() == 0) {
+                    if (!hasNext())
+                        throw new NoSuchElementException();
+
+                    currentLeaf = currentLeaf.getRightSibling().get();
+                }
             }
+
+
 
             return currentLeaf.getRids().get(currentKeyPosInLeaf++);
         }

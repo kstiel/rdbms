@@ -1,7 +1,6 @@
 package edu.berkeley.cs186.database.index;
 
 import edu.berkeley.cs186.database.TimeoutScaling;
-import edu.berkeley.cs186.database.categories.HiddenTests;
 import edu.berkeley.cs186.database.categories.Proj2Tests;
 import edu.berkeley.cs186.database.categories.PublicTests;
 import edu.berkeley.cs186.database.categories.SystemTests;
@@ -214,6 +213,49 @@ public class TestBPlusTree {
         String leaf3 = "((10 (10 10)) (11 (11 11)))";
         String sexp = String.format("(%s 4 %s 7 %s 10 %s)", leaf0, leaf1, leaf2, leaf3);
         assertEquals(sexp, tree.toSexp());
+    }
+
+    @Test
+    @Category(PublicTests.class)
+    public void emptyMiddleLeafIteratorTest() {
+        BPlusTree tree = getBPlusTree(Type.intType(), 1);
+        assertEquals("()", tree.toSexp());
+
+        // (4)
+        tree.put(new IntDataBox(4), new RecordId(4, (short) 4));
+
+        // (4 9)
+        tree.put(new IntDataBox(9), new RecordId(9, (short) 9));
+
+        //   (6)
+        //  /   \
+        // (4) (6 9)
+        tree.put(new IntDataBox(6), new RecordId(6, (short) 6));
+
+        //     (6)
+        //    /   \
+        // (2 4) (6 9)
+        tree.put(new IntDataBox(2), new RecordId(2, (short) 2));
+
+        //      (6 7)
+        //     /  |  \
+        // (2 4) (6) (7 9)
+        tree.put(new IntDataBox(7), new RecordId(7, (short) 7));
+
+        // remove and make the middle leave empty and dangling
+        tree.remove(new IntDataBox(6));
+
+        List<Short> expected = new ArrayList<>(Arrays.asList((short) 2, (short) 4, (short) 7, (short) 9));
+
+        Iterator<RecordId> realList = tree.scanAll();
+        Iterator<Short> expectedList = expected.listIterator();
+
+        while (realList.hasNext() && expectedList.hasNext()) {
+            assertEquals(expectedList.next().shortValue(), realList.next().getEntryNum());
+        }
+
+        assertFalse(realList.hasNext());
+        assertFalse(expectedList.hasNext());
     }
 
     @Test
