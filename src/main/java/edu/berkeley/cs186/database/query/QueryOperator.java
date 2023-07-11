@@ -190,6 +190,7 @@ public abstract class QueryOperator implements Iterable<Record> {
         return new ArrayBacktrackingIterator<>(blockRecords);
     }
 
+
     /**
      * @param operator a query operator to materialize
      * @param transaction the transaction the materialized table will be created

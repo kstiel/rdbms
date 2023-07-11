@@ -85,8 +85,15 @@ public class BNLJOperator extends JoinOperator {
          *
          * You may find QueryOperator#getBlockIterator useful here.
          */
+
         private void fetchNextLeftBlock() {
             // TODO(proj3_part1): implement
+            getSchema();
+            this.leftBlockIterator = getBlockIterator(leftSourceIterator, getLeftSource().getSchema(), numBuffers-2);
+            if ( leftBlockIterator.hasNext()) {
+                leftBlockIterator.markNext();
+                leftRecord = leftBlockIterator.next();
+            }
         }
 
         /**
@@ -101,6 +108,10 @@ public class BNLJOperator extends JoinOperator {
          */
         private void fetchNextRightPage() {
             // TODO(proj3_part1): implement
+            this.rightPageIterator = getBlockIterator(rightSourceIterator, getRightSource().getSchema(), 1);
+            if (rightPageIterator.hasNext()) rightPageIterator.markNext();
+
+
         }
 
         /**
@@ -113,7 +124,39 @@ public class BNLJOperator extends JoinOperator {
          */
         private Record fetchNextRecord() {
             // TODO(proj3_part1): implement
-            return null;
+//            if ( leftRecord == null) {
+//                return null;
+//            }
+            while (true) {
+                // right record advanced in current page
+                if (rightPageIterator.hasNext() ) {
+                    Record tmpRecord = rightPageIterator.next();
+                    if (compare(leftRecord, tmpRecord) == 0 ) {
+                        return leftRecord.concat(tmpRecord);
+                    }
+                }
+                // page ended and record advanced in current block
+                else if (leftBlockIterator.hasNext()) {
+                    leftRecord = leftBlockIterator.next();
+                    rightPageIterator.reset();
+                }
+                // block ended for current page
+                else if (rightSourceIterator.hasNext()){
+                    leftBlockIterator.reset();
+                    leftRecord = leftBlockIterator.next();
+                    fetchNextRightPage();
+                }
+                // block advanced and page reset
+                else if (leftSourceIterator.hasNext() ){
+                    fetchNextLeftBlock();
+                    rightSourceIterator.reset();
+                    fetchNextRightPage();
+                }
+                else {
+                    return null;
+                }
+            }
+
         }
 
         /**

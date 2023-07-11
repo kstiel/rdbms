@@ -2,6 +2,7 @@ package edu.berkeley.cs186.database.query;
 
 import edu.berkeley.cs186.database.TransactionContext;
 import edu.berkeley.cs186.database.common.Pair;
+import edu.berkeley.cs186.database.common.iterator.ArrayBacktrackingIterator;
 import edu.berkeley.cs186.database.common.iterator.BacktrackingIterator;
 import edu.berkeley.cs186.database.query.disk.Run;
 import edu.berkeley.cs186.database.table.Record;
@@ -87,13 +88,18 @@ public class SortOperator extends QueryOperator {
      */
     public Run sortRun(Iterator<Record> records) {
         // TODO(proj3_part1): implement
-        return null;
+        List<Record> tmp = new ArrayList<>();
+        while (records.hasNext()) {
+            tmp.add(records.next());
+        }
+        tmp.sort(comparator);
+        return makeRun(tmp);
     }
 
     /**
      * Given a list of sorted runs, returns a new run that is the result of
      * merging the input runs. You should use a Priority Queue (java.util.PriorityQueue)
-     * to determine which record should be should be added to the output run
+     * to determine which record should be added to the output run
      * next.
      *
      * You are NOT allowed to have more than runs.size() records in your
@@ -108,7 +114,24 @@ public class SortOperator extends QueryOperator {
     public Run mergeSortedRuns(List<Run> runs) {
         assert (runs.size() <= this.numBuffers - 1);
         // TODO(proj3_part1): implement
-        return null;
+        Run output = makeRun();
+        PriorityQueue<Pair<Record, Integer>> pq = new PriorityQueue<>(runs.size() ,new RecordPairComparator());
+        List<Iterator<Record>> iterators = new ArrayList<>(runs.size());
+        // fill pq with the first record of all run
+        for (int i = 0; i < runs.size(); i++) {
+            iterators.add(runs.get(i).iterator());
+            pq.add(new Pair<>(iterators.get(i).next(),i));
+        }
+
+        while (!pq.isEmpty()) {
+            Pair<Record, Integer> removed = pq.poll();
+            output.add(removed.getFirst());
+            int idx = removed.getSecond();
+            if (iterators.get(idx).hasNext()) {
+                pq.add(new Pair<>(iterators.get(idx).next(), idx));
+            }
+        }
+        return output;
     }
 
     /**
@@ -133,8 +156,22 @@ public class SortOperator extends QueryOperator {
      */
     public List<Run> mergePass(List<Run> runs) {
         // TODO(proj3_part1): implement
-        return Collections.emptyList();
+        Iterator<Run> iterators = runs.iterator();
+        int availableBuffer = numBuffers-1;
+        List<Run> output = new ArrayList<>();
+        List<Run> input = new ArrayList<>(availableBuffer);
+        while (iterators.hasNext()) {
+            if ( input.size() == availableBuffer ) {
+                output.add(mergeSortedRuns(input));
+                input.clear();
+            }
+            input.add(iterators.next());
+        }
+        if (input.size() > 0 ) output.add(mergeSortedRuns(input));
+        return output;
+
     }
+
 
     /**
      * Does an external merge sort over the records of the source operator.
@@ -149,7 +186,16 @@ public class SortOperator extends QueryOperator {
         Iterator<Record> sourceIterator = getSource().iterator();
 
         // TODO(proj3_part1): implement
-        return makeRun(); // TODO(proj3_part1): replace this!
+        List<Run> externalSortedRuns = new ArrayList<>();
+        while(sourceIterator.hasNext()) {
+            externalSortedRuns.add(sortRun(getBlockIterator(sourceIterator, computeSchema() , numBuffers)));
+        }
+
+        while( externalSortedRuns.size() != 1 ) {
+            externalSortedRuns = mergePass(externalSortedRuns);
+        }
+
+        return externalSortedRuns.get(0); // TODO(proj3_part1): replace this!
     }
 
     /**

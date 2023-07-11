@@ -173,6 +173,7 @@ public class TestGraceHashJoin {
                     transaction.getTransactionContext()
             );
 
+
             List<Record> output = new ArrayList<>();
             for (Record record: ghj) output.add(record);
 
